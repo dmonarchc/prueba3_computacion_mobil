@@ -1,18 +1,62 @@
-# flutter_application_1
+#  Aplicación Flutter – Tienda de Productos
 
-A new Flutter project.
+##  Descripción
+Aplicación móvil desarrollada en Flutter que implementa autenticación de usuarios, gestión de productos y un flujo completo de compra, utilizando Firebase Authentication y una API REST proporcionada por el profesor.
 
-## Getting Started
+##  Tecnologías utilizadas
+- Flutter (Dart)
+- Firebase Authentication
+- API REST (backend entregado)
+- Provider (gestión de estado)
+- Postman (pruebas)
+- url_launcher (correo)
 
-This project is a starting point for a Flutter application.
+##  Autenticación (Firebase)
+Se implementó autenticación mediante Firebase Authentication:
+- Registro de usuarios
+- Inicio de sesión
+- Recuperación de contraseña (correo real necesario para que llegue el mail de reset de password)
 
-A few resources to get you started if this is your first Flutter project:
+API utilizada:
+https://identitytoolkit.googleapis.com
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+##  Gestión de Productos (API REST)
+Endpoints:
+- GET /ejemplos/product_list_rest/
+- POST /ejemplos/product_add_rest/
+- POST /ejemplos/product_edit_rest/
+- POST /ejemplos/product_del_rest/
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-# prueba3_computacion_mobil
+Auth:
+Usuario: test
+Contraseña: test2023
+
+##  Funcionalidades
+- Listado de productos
+- Buscador
+- Filtro por categorías (simulado)
+- Detalle de producto
+- Carrito de compras
+- Selección de cantidad
+- Validación de stock
+- Compra con correo
+
+##  Stock
+Implementado de forma simulada en memoria, con validación y rebaja tras la compra.
+
+##  Correo
+Se utiliza url_launcher para abrir el cliente de correo con los datos de la compra.
+
+##  Postman
+Se probaron todos los endpoints con evidencias:
+- GET
+- POST create
+- POST edit
+- POST delete
+
+##  Ejecución
+flutter pub get
+flutter run
+
+##  Conclusión
+La aplicación cumple con autenticación, CRUD, carrito, compra, validación de stock y uso de API externa.
