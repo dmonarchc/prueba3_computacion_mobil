@@ -1,29 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../providers/cart_provider.dart';
+import '../services/services.dart';
 
 class CartScreen extends StatelessWidget {
   const CartScreen({super.key});
 
-  int getFakeStock(int productId) {
-    return 10 + (productId % 5);
+  Future<void> sendPurchaseEmail(
+    String email,
+    CartProvider cartProvider,
+  ) async {
+    final body = StringBuffer();
+
+    body.writeln('Gracias por su compra.');
+    body.writeln('');
+    body.writeln('Detalle de compra:');
+
+    for (final item in cartProvider.cart) {
+      body.writeln(
+        '- ${item.product.productName} x${item.quantity} = \$${item.product.productPrice * item.quantity}',
+      );
+    }
+
+    body.writeln('');
+    body.writeln('Total: \$${cartProvider.total}');
+
+    final Uri uri = Uri(
+      scheme: 'mailto',
+      path: email,
+      queryParameters: {'subject': 'Compra realizada', 'body': body.toString()},
+    );
+
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    }
   }
 
-  void buy(BuildContext context, CartProvider cartProvider) {
-    final productsWithoutStock = cartProvider.cart.where((product) {
-      return getFakeStock(product.productId) <= 0;
-    }).toList();
+  void buy(BuildContext context, CartProvider cartProvider) async {
+    final authService = Provider.of<AuthServices>(context, listen: false);
+    final email = authService.currentEmail;
+
+    if (email == null || email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se encontró el correo del cliente.')),
+      );
+      return;
+    }
+
+    final productsWithoutStock = cartProvider.getProductsWithoutStock();
 
     if (productsWithoutStock.isNotEmpty) {
-      for (final product in productsWithoutStock) {
-        cartProvider.removeProduct(product);
-      }
+      cartProvider.removeProductsWithoutStock();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Algunos productos no tienen stock y fueron eliminados del carrito',
+            'Hay productos sin stock suficiente. Fueron eliminados del carrito.',
           ),
         ),
       );
@@ -31,11 +65,15 @@ class CartScreen extends StatelessWidget {
       return;
     }
 
-    cartProvider.clearCart();
+    await sendPurchaseEmail(email, cartProvider);
+
+    cartProvider.buyProducts();
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Compra realizada. Correo enviado al cliente.'),
+      SnackBar(
+        content: Text(
+          'Compra realizada. Stock rebajado y correo enviado a $email.',
+        ),
       ),
     );
   }
@@ -54,26 +92,55 @@ class CartScreen extends StatelessWidget {
                   child: ListView.builder(
                     itemCount: cartProvider.cart.length,
                     itemBuilder: (context, index) {
-                      final product = cartProvider.cart[index];
+                      final item = cartProvider.cart[index];
+                      final product = item.product;
+                      final stock = cartProvider.getStock(product);
 
-                      return ListTile(
-                        leading: Image.network(
-                          product.productImage,
-                          width: 50,
-                          height: 50,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) =>
-                              const Icon(Icons.image_not_supported),
+                      return Card(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
                         ),
-                        title: Text(product.productName),
-                        subtitle: Text(
-                          'Precio: \$${product.productPrice} | Stock: ${getFakeStock(product.productId)}',
-                        ),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete),
-                          onPressed: () {
-                            cartProvider.removeProduct(product);
-                          },
+                        child: ListTile(
+                          leading: Image.network(
+                            product.productImage,
+                            width: 50,
+                            height: 50,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) =>
+                                const Icon(Icons.image_not_supported),
+                          ),
+                          title: Text(product.productName),
+                          subtitle: Text(
+                            'Precio: \$${product.productPrice}\n'
+                            'Stock disponible: $stock',
+                          ),
+                          trailing: SizedBox(
+                            width: 130,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.remove),
+                                  onPressed: () {
+                                    cartProvider.decreaseQuantity(product);
+                                  },
+                                ),
+                                Text(
+                                  '${item.quantity}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.add),
+                                  onPressed: () {
+                                    cartProvider.increaseQuantity(product);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       );
                     },
@@ -83,10 +150,12 @@ class CartScreen extends StatelessWidget {
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
+                      Text('Productos: ${cartProvider.totalItems}'),
+                      const SizedBox(height: 6),
                       Text(
                         'Total: \$${cartProvider.total}',
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

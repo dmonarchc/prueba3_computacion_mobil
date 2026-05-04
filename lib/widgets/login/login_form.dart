@@ -16,9 +16,11 @@ class LoginForm extends StatelessWidget {
     required this.pathButton,
     required this.loginRegister,
   });
+
   @override
   Widget build(BuildContext context) {
     final loginForm = Provider.of<LoginFormProvider>(context);
+
     return Form(
       key: loginForm.formkey,
       autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -26,20 +28,20 @@ class LoginForm extends StatelessWidget {
         children: [
           TextFormField(
             autocorrect: false,
-            keyboardType: TextInputType.text,
+            keyboardType: TextInputType.emailAddress,
             decoration: InputDecorations.authInputDecoration(
               hinText: 'Ingrese su correo',
               labelText: 'Email',
               prefixIcon: Icons.people,
             ),
-            onChanged: (value) => loginForm.email = value,
+            onChanged: (value) => loginForm.email = value.trim(),
             validator: (value) {
               return (value != null && value.length > 4)
                   ? null
-                  : 'El usuario no puede estar vacio o ser de menos de 4 caracteres';
+                  : 'Ingrese un correo válido';
             },
           ),
-          SizedBox(height: 30),
+          const SizedBox(height: 30),
           TextFormField(
             autocorrect: false,
             obscureText: true,
@@ -51,55 +53,107 @@ class LoginForm extends StatelessWidget {
             ),
             onChanged: (value) => loginForm.password = value,
             validator: (value) {
-              return (value != null && value.length > 4)
+              return (value != null && value.length >= 6)
                   ? null
-                  : 'El usuario no puede estar vacio o ser de menos de 4 caracteres';
+                  : 'La contraseña debe tener al menos 6 caracteres';
             },
           ),
-          SizedBox(height: 30),
+          const SizedBox(height: 20),
+
+          if (loginRegister == 1)
+            TextButton(
+              onPressed: () async {
+                final email = loginForm.email.trim();
+
+                if (email.isEmpty || email.length < 5) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Ingrese su correo primero')),
+                  );
+                  return;
+                }
+
+                final authService = Provider.of<AuthServices>(
+                  context,
+                  listen: false,
+                );
+
+                final errorMessage = await authService.resetPassword(email);
+
+                if (errorMessage == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Correo de recuperación enviado a $email'),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $errorMessage')),
+                  );
+                }
+              },
+              child: const Text('¿Olvidaste tu contraseña?'),
+            ),
+
+          const SizedBox(height: 10),
+
           MaterialButton(
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadiusGeometry.circular(10),
+              borderRadius: BorderRadius.circular(10),
             ),
             disabledColor: Colors.grey,
             color: Colors.blueGrey,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 80, vertical: 10),
-              child: Text(textButton, style: TextStyle(color: Colors.white)),
-            ),
             elevation: 0,
             onPressed: loginForm.isloading
                 ? null
                 : () async {
                     FocusScope.of(context).unfocus();
+
                     final authService = Provider.of<AuthServices>(
                       context,
                       listen: false,
                     );
+
                     if (!loginForm.isValidForm()) return;
+
+                    loginForm.isloading = true;
+
                     if (loginRegister == 1) {
                       final String? errorMessage = await authService.login(
                         loginForm.email,
                         loginForm.password,
                       );
+
                       if (errorMessage == null) {
-                        Navigator.pushNamed(context, pathButton);
+                        Navigator.pushReplacementNamed(context, pathButton);
                       } else {
-                        print(errorMessage);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $errorMessage')),
+                        );
                       }
                     } else {
                       final String? errorMessage = await authService.createUser(
                         loginForm.email,
                         loginForm.password,
                       );
+
                       if (errorMessage == null) {
-                        Navigator.pushNamed(context, pathButton);
+                        Navigator.pushReplacementNamed(context, pathButton);
                       } else {
-                        print(errorMessage);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: $errorMessage')),
+                        );
                       }
                     }
+
                     loginForm.isloading = false;
                   },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 10),
+              child: Text(
+                textButton,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
           ),
         ],
       ),
